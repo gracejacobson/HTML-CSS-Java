@@ -1,0 +1,127 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+<style>
+html {
+    background-color: #191919;
+}
+
+body > * {font-family:  'Open Sans','Trebuchet MS', 'Lucida Sans Unicode', 'Lucida Grande', 'Lucida Sans', Arial, sans-serif;
+      color: #ffffff;
+}
+
+body {
+    margin: 30px;
+}
+
+button{
+    background-color: #2d323a;
+}  
+
+textarea{
+    background-color: #3d3d3d;
+    color:white
+}
+</style>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Open+Sans:wght@500&display=swap" rel="stylesheet">
+</head>
+
+<body>
+    <h1>Translate</h1>
+    <p>Translates DNA sequence to amino acids and returns largest forward open reading frame.</p>
+    <label for="DNASequence" >Paste DNA Sequence:</label> <br>
+    <textarea id="DNAsequence" name="DNASequence" rows="10" cols="100" ></textarea><br>
+    <button onclick="main()" id="submit" type="button"> Submit </button><br>
+    <p id="output"></p>
+</body>
+
+<script>
+
+const DNA_codon_table = {
+'TTT': 'F', 'TCT': 'S', 'TAT': 'Y', 'TGT': 'C',
+'TTC': 'F', 'TCC': 'S', 'TAC': 'Y', 'TGC': 'C',
+'TTA': 'L', 'TCA': 'S', 'TAA': '*', 'TGA': '*',
+'TTG': 'L', 'TCG': 'S', 'TAG': '*', 'TGG': 'W',
+
+'CTT': 'L', 'CCT': 'P', 'CAT': 'H', 'CGT': 'R',
+'CTC': 'L', 'CCC': 'P', 'CAC': 'H', 'CGC': 'R',
+'CTA': 'L', 'CCA': 'P', 'CAA': 'Q', 'CGA': 'R',
+'CTG': 'L', 'CCG': 'P', 'CAG': 'Q', 'CGG': 'R',
+
+'ATT': 'I', 'ACT': 'T', 'AAT': 'N', 'AGT': 'S',
+'ATC': 'I', 'ACC': 'T', 'AAC': 'N', 'AGC': 'S',
+'ATA': 'I', 'ACA': 'T', 'AAA': 'K', 'AGA': 'R',
+'ATG': 'M', 'ACG': 'T', 'AAG': 'K', 'AGG': 'R',
+
+'GTT': 'V', 'GCT': 'A', 'GAT': 'D', 'GGT': 'G',
+'GTC': 'V', 'GCC': 'A', 'GAC': 'D', 'GGC': 'G',
+'GTA': 'V', 'GCA': 'A', 'GAA': 'E', 'GGA': 'G',
+'GTG': 'V', 'GCG': 'A', 'GAG': 'E', 'GGG': 'G'}
+
+function main(){
+    sequence =  document.getElementById("DNAsequence").value
+    sequence = sequence.toUpperCase()
+    aa = translate(sequence)
+    document.getElementById("output").innerHTML = aa
+    }
+
+
+function translate(sequence){
+
+    sequence2 = sequence.slice(1)
+    sequence3 = sequence.slice(2)
+
+    codonArray1 = sequence.match(/.{1,3}/g)
+    codonArray2 = sequence2.match(/.{1,3}/g)
+    codonArray3 = sequence3.match(/.{1,3}/g)
+
+    protein1 = ''
+    protein2 = ''
+    protein3 = ''
+
+    list = []
+
+    for(i = 0; i <codonArray1.length; i++){
+        protein = DNA_codon_table[codonArray1[i]];
+        if (protein) {protein1+=protein};
+    }
+
+    for(i = 0; i <codonArray2.length; i++){
+        protein = DNA_codon_table[codonArray2[i]];
+        if (protein) {protein2+=protein};
+    }
+
+    for(i = 0; i <codonArray3.length; i++){
+        protein = DNA_codon_table[codonArray3[i]];
+        if (protein) {protein3+=protein}
+    }
+
+    const protein1orfs = protein1.split('*')
+    const prot1sorted = protein1orfs.sort((a,b) => b.length - a.length)
+
+    const protein2orfs = protein2.split('*')
+    const prot2sorted = protein2orfs.sort((a,b) => b.length - a.length)
+
+    const protein3orfs = protein3.split('*')
+    const prot3sorted = protein3orfs.sort((a,b) => b.length - a.length)
+
+    largestOrf = ''
+
+    const orf1 = prot1sorted[0]
+    const orf2 = prot2sorted[0]
+    const orf3 = prot3sorted[0]
+
+    if (orf1.length > largestOrf.length){largestOrf=orf1}
+
+    if (orf2.length > largestOrf.length){largestOrf=orf2}
+
+    if (orf3.length > largestOrf.length){largestOrf=orf3}
+
+    return '<strong> Largest ORF: </strong><br><br>' + largestOrf
+}
+
+</script>
+</html>

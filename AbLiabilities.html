@@ -1,0 +1,455 @@
+<!DOCTYPE html>
+<html>
+<head>
+<style>
+body > * {font-family:  'Open Sans','Trebuchet MS', 'Lucida Sans Unicode', 'Lucida Grande', 'Lucida Sans', Arial, sans-serif;
+      }
+
+body {
+    margin: 30px
+}
+#AA{
+    width: 800px;
+    word-break: break-all;
+}
+
+#outputlist{
+    width: 800px;
+    word-break: break-all;
+}
+
+#deamidation{
+    background-color: rgb(233, 81, 81);
+}
+#isomerization{
+    background-color: rgb(241, 172, 67);
+}
+#oxidation{
+    background-color: rgb(255, 255, 119);
+}
+#cysteine{
+    background-color: rgb(87, 150, 87);
+}
+#cleavage{
+    background-color: rgb(119, 119, 255);
+}
+#glycosylation{
+    background-color: rgb(117, 75, 117);
+}
+#overlapping_liability{
+    background-color: rgb(231, 89, 196);
+}
+.collapsible, #submit {
+  background-color: #777;
+  color: white;
+  cursor: pointer;
+  padding: 18px;
+  border: none;
+  text-align: left;
+  outline: none;
+  font-size: 15px;
+}
+
+.active, .collapsible:hover {
+  background-color: #555;
+}
+
+.content{
+  padding: 0 18px;
+  width: 800px;
+  display: none;
+  overflow: hidden;
+  background-color: #f1f1f1;
+}
+</style>
+
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Open+Sans:wght@500&display=swap" rel="stylesheet">
+
+</head>
+<body>
+    <h1>Liabilities</h1>
+    <label for="DNASequence" ><b>Paste Sequence:</b></label> <br>
+    <input type="checkbox" id = "checkbox" name ="checkbox">
+    <label for="checkbox"> DNA Sequence</label> <br><br>
+    <label for="selectlist">Exclude liabilities: </label> <br>
+    <select name="selectlist" id="selectlist" size = "6" multiple >
+        <option value="deamidation">deamidation</option>
+        <option value="isomerization">isomerization</option>
+        <option value="oxidation">oxidation</option>
+        <option value="cysteine">cysteine</option>
+        <option value="cleavage">cleavage</option>
+        <option value="glycosylation">glycosylation</option>
+    </select> <br> <br>
+    <textarea id="DNAsequence" name="DNASequence" rows="10" cols="100" ></textarea><br>
+    <button onclick="main()" id="submit" type="button"> Submit </button>
+    
+    <button type="button" class="collapsible">Info</button>
+        <div class="content">
+            <p><strong>Recognized liabilities:</strong><br>
+                deamidation: NG, NS, NN, NT, NH, NF, NY, NQ, NW <br>
+                isomerization: DG, DS, DD, DT, DH, DY, DR<br>
+                oxidation: M, W<br>
+                cysteine: C<br>
+                cleavage: DP<br>
+                glycosylation: N, followed by anything but P, then S or T
+                <br><br><strong>Overlapping liabilities:</strong><br>
+                glycan and/or deamid and/or oxidation/cysteine: deamidation, NC, or NM, followed by S or T<br>
+                isomerization and glycan: NDT, NDS<br>
+                isomerization overlap: DD, followed by a G, S, D, T, H, D, Y, R<br>
+                deamidation with tryptophan: NW<br>
+            </p>
+        </div>
+
+        <script>
+
+        var coll = document.getElementsByClassName("collapsible");
+        var i;
+
+        for (i = 0; i < coll.length; i++) {
+        coll[i].addEventListener("click", function() {
+            this.classList.toggle("active");
+            var content = this.nextElementSibling;
+            if (content.style.display === "block") {
+            content.style.display = "none";
+            } else {
+            content.style.display = "block";
+            }
+        });
+        }
+        </script>
+    <p id="AA"></p>
+    <p id="liabilities"></p>
+    <p id="outputlist"></p>
+</body>
+
+<script>
+
+const DNA_codon_table = {
+'TTT': 'F', 'TCT': 'S', 'TAT': 'Y', 'TGT': 'C',
+'TTC': 'F', 'TCC': 'S', 'TAC': 'Y', 'TGC': 'C',
+'TTA': 'L', 'TCA': 'S', 'TAA': '*', 'TGA': '*',
+'TTG': 'L', 'TCG': 'S', 'TAG': '*', 'TGG': 'W',
+
+'CTT': 'L', 'CCT': 'P', 'CAT': 'H', 'CGT': 'R',
+'CTC': 'L', 'CCC': 'P', 'CAC': 'H', 'CGC': 'R',
+'CTA': 'L', 'CCA': 'P', 'CAA': 'Q', 'CGA': 'R',
+'CTG': 'L', 'CCG': 'P', 'CAG': 'Q', 'CGG': 'R',
+
+'ATT': 'I', 'ACT': 'T', 'AAT': 'N', 'AGT': 'S',
+'ATC': 'I', 'ACC': 'T', 'AAC': 'N', 'AGC': 'S',
+'ATA': 'I', 'ACA': 'T', 'AAA': 'K', 'AGA': 'R',
+'ATG': 'M', 'ACG': 'T', 'AAG': 'K', 'AGG': 'R',
+
+'GTT': 'V', 'GCT': 'A', 'GAT': 'D', 'GGT': 'G',
+'GTC': 'V', 'GCC': 'A', 'GAC': 'D', 'GGC': 'G',
+'GTA': 'V', 'GCA': 'A', 'GAA': 'E', 'GGA': 'G',
+'GTG': 'V', 'GCG': 'A', 'GAG': 'E', 'GGG': 'G'}
+
+
+function main(){
+    list = document.getElementById('selectlist')
+    selected = [...list.selectedOptions].map(option => option.value);
+
+    if (document.getElementById("checkbox").checked == true){
+        sequence =  document.getElementById("DNAsequence").value
+        sequence = sequence.toUpperCase()
+        aa = translate(sequence)
+        document.getElementById("AA").innerHTML = "<h4> Amino Acid Sequence:</h4> <p>" + aa + "</p>"
+        liabilities = getLiabilities(aa, selected)
+        document.getElementById("liabilities").innerHTML = "<h4> Liabilities: </h4>"
+        document.getElementById("outputlist").innerHTML = liabilities  
+    }
+    else{
+        aa= document.getElementById("DNAsequence").value
+        aa = aa.toUpperCase()
+        liabilities = getLiabilities(aa, selected)
+        document.getElementById("liabilities").innerHTML = "<h4> Liabilities: </h4>"
+        document.getElementById("outputlist").innerHTML = liabilities
+    }
+   
+    }
+
+
+function translate(sequence){
+
+    sequence2 = sequence.slice(1)
+    sequence3 = sequence.slice(2)
+
+    codonArray1 = sequence.match(/.{1,3}/g)
+    codonArray2 = sequence2.match(/.{1,3}/g)
+    codonArray3 = sequence3.match(/.{1,3}/g)
+
+    protein1 = ''
+    protein2 = ''
+    protein3 = ''
+
+    for(i = 0; i <codonArray1.length; i++){
+        protein = DNA_codon_table[codonArray1[i]];
+        if (protein) {protein1+=protein};
+    }
+
+    for(i = 0; i <codonArray2.length; i++){
+        protein = DNA_codon_table[codonArray2[i]];
+        if (protein) {protein2+=protein};
+    }
+
+    for(i = 0; i <codonArray3.length; i++){
+        protein = DNA_codon_table[codonArray3[i]];
+        if (protein) {protein3+=protein};
+    }
+
+    const protein1orfs = protein1.split('*')
+    const prot1sorted = protein1orfs.sort((a,b) => b.length - a.length)
+
+    const protein2orfs = protein2.split('*')
+    const prot2sorted = protein2orfs.sort((a,b) => b.length - a.length)
+
+    const protein3orfs = protein3.split('*')
+    const prot3sorted = protein3orfs.sort((a,b) => b.length - a.length)
+
+    largestOrf = ''
+
+    const orf1 = prot1sorted[0]
+    const orf2 = prot2sorted[0]
+    const orf3 = prot3sorted[0]
+
+    if (orf1.length>largestOrf.length){largestOrf=orf1};
+
+    if (orf2.length>largestOrf.length){largestOrf=orf2};
+
+    if (orf3.length > largestOrf.length){largestOrf=orf3}
+
+    return largestOrf
+}
+
+function getLiabilities(aa, selected){
+
+    const AB_LIABILITIES = {
+    'deamidation':'[N][GSNTHFYQW]',
+    'isomerization':'[D][GSDTHYR]' ,
+    'oxidation':'[MW]',
+    'cysteine':'[C]', 
+    'cleavage':'[D][P]',
+    'glycosylation': '[N][^P][ST]'}
+
+    liabilityMotifs = {
+        'deamidation':[], 
+        'isomerization':[], 
+        'oxidation':[],
+        'cysteine':[], 
+        'cleavage':[],
+        'glycosylation':[]}
+
+    liabilityCounts = {'deamidation':0, 
+        'isomerization':0, 
+        'oxidation':0 ,
+        'cysteine':0, 
+        'cleavage':0,
+        'glycosylation':0}
+
+    liabilityIdx = {
+        'deamidation':[], 
+        'isomerization':[], 
+        'oxidation':[],
+        'cysteine':[], 
+        'cleavage':[],
+        'glycosylation':[]
+    }
+
+    overlapre = {
+    'glycan and/or deamid and/or oxidation/cysteine ':'[N][GSNTHFYQWMC][ST]',
+    'isomerization and glycan': '[N][D][TS]',
+    'isomerization overlap': '[D][D][GSDTHDYR]'}
+
+    const here = []
+    aa2 = ['deamidation', 'isomerization', 'cleavage']
+
+    for (i=0; i<selected.length; i++){
+        key = String(selected[i])
+        delete AB_LIABILITIES[key];
+        delete liabilityCounts[key];
+
+    }
+    here.push(Object.keys(liabilityCounts))
+
+
+    for(liability in AB_LIABILITIES){
+        var re = new RegExp(AB_LIABILITIES[liability], 'g')
+        currentMotifs = [...aa.matchAll(re)]
+        for (i in currentMotifs){
+        liabilityMotifs[liability].push(currentMotifs[i])
+        liabilityCounts[liability] +=1
+        }}
+
+    allidx = []
+
+    overlapMotifs = []
+    overlapCount = 0
+    overlapidx = []
+    overlapmotifidx = {}
+    for(overlap in overlapre){
+        var re = new RegExp(overlapre[overlap], 'g')
+        currentMotifs = [...aa.matchAll(re)]
+
+        for (i in currentMotifs){
+            overlapMotifs.push(currentMotifs[i])
+            overlapCount+=1
+        }}
+
+    lastidx=0
+
+    for (i=0; i<overlapMotifs.length; i++){
+        motif= (overlapMotifs[String(i)])
+        curridx = aa.indexOf(motif, lastidx)
+        if(curridx != -1){
+            allidx.push(curridx)
+            overlapmotifidx[curridx] = motif
+
+            for (z=0; z<motif.length+1; z++){
+                overlapidx.push(curridx+z)
+                lastidx = curridx+z
+            }
+            }}
+    
+    const regexp = /[N][W]/g;
+    const NWoverlap = [...aa.matchAll(regexp)]
+
+    thisidx = 0
+
+    for (i in NWoverlap){
+        curridx = aa.indexOf(NWoverlap[i], thisidx)
+        if(curridx!=-1){
+            if(overlapidx.includes(curridx)){}
+            else{
+                overlapmotifidx[curridx] = NWoverlap[i]
+                allidx.push(curridx)
+                overlapidx.push(curridx)
+                overlapCount+=1
+                overlapidx.push(curridx+1)
+            }
+        }
+    }
+
+    for (liability in liabilityCounts){
+
+        if (liabilityMotifs[liability].length > 0){
+
+            lastIndex = aa.indexOf(liabilityMotifs[liability][0])
+
+            if (overlapidx.includes(lastIndex)){
+                for(i=1; i<= liabilityCounts[liability]; i++){
+                    idx = aa.indexOf(liabilityMotifs[liability][i], lastIndex+1)
+
+                    if (idx>=0){
+                        if (allidx.includes(idx)){}                        
+                        else {
+                            if (overlapidx.includes(idx)){}
+                            else{
+                                liabilityIdx[liability].push(idx)
+                                allidx.push(idx)
+
+                                if (aa2.includes(liability)){
+                                    lastIndex = idx+2
+                                }
+                                if (liability =='glycosylation')
+                                {
+                                    lastIndex= idx+3
+                                }
+                                else{
+                                    lastIndex = idx+1
+                                }}}}}} 
+
+            else{
+                liabilityIdx[liability].push(lastIndex)
+                allidx.push(lastIndex)
+
+                for(i=1; i<= liabilityCounts[liability]; i++){
+
+                    idx = aa.indexOf(liabilityMotifs[liability][i], lastIndex+1)
+                    if(idx!=-1){
+                        if (allidx.includes(idx)){}
+                        else if (overlapidx.includes(idx)){}
+                        else {
+                            liabilityIdx[liability].push(idx)
+                            allidx.push(idx)
+
+                            if (aa2.includes(liability)){
+                                lastIndex = idx+2
+                            }
+                            if (liability =='glycosylation')
+                            {lastIndex= idx+3}
+                            else{lastIndex = idx+1}}
+            }}}}}
+    
+    
+    allidx.sort(function(a, b){return a-b});
+
+    output = ''
+
+    if(allidx[0]==0){}
+    else if (allidx[0]==1){
+        output+="<p>"+ aa.charAt(0)
+    }
+    else if (allidx[0]>1){
+        output+="<p>"+ aa.slice(0, allidx[0]);
+    }
+
+    keys = Object.keys(overlapmotifidx)
+    values = Object.values(overlapmotifidx)
+
+    for (i=0; i<allidx.length; i++){
+        sliceidx = allidx[i]
+        sliceidx2= 0
+        id = ''
+
+        if (liabilityIdx['deamidation'].includes(sliceidx)){
+            sliceidx2=sliceidx+2
+            id= "id=\"deamidation\""}
+        else if (liabilityIdx['isomerization'].includes(sliceidx)){
+            sliceidx2= sliceidx+2
+            id= "id=\"isomerization\""}
+        else if (liabilityIdx['oxidation'].includes(sliceidx)){
+            sliceidx2 =  sliceidx+1
+            id="id=\"oxidation\""}
+        else if (liabilityIdx['cysteine'].includes(sliceidx)){
+            sliceidx2 = sliceidx+1
+            id="id=\"cysteine\""}
+        else  if (liabilityIdx['cleavage'].includes(sliceidx)){
+            sliceidx2 = sliceidx+2
+            id="id=\"cleavage\""}
+        else if (liabilityIdx['glycosylation'].includes(sliceidx)){
+            sliceidx2 =sliceidx+3
+            id="id=\"glycosylation\""}
+        else if (keys.includes(String(sliceidx))){
+            motif = overlapmotifidx[String(sliceidx)]
+            z= String(motif).length
+            sliceidx2=sliceidx+z
+            id="id=\"overlapping_liability\""}
+        
+        output+= "<mark "+ id +">"+ aa.slice(sliceidx, sliceidx2) +"</mark>"
+        
+        next = allidx[i+1]
+
+        if (next !=sliceidx2)
+        {
+            output+= aa.slice(sliceidx2,next)
+        }
+    }
+
+    if (allidx.length ==0){
+        output+=aa + '<br> <br>No liabilities found.'
+    }
+    else{
+        output+= '<ul>'
+        for(liability in liabilityCounts){
+            output += '<li> <mark id=\"' + liability +'\">' + liability+'</mark>: '+ liabilityCounts[liability] + " sites. </li>"
+        }
+        output += '<li> <mark id=\"overlapping_liability\"> overlapping liabilities</mark>: ' + overlapCount + ' sites.</li></p> </ul>'
+    }
+
+    return output
+}
+</script>
+</html>
